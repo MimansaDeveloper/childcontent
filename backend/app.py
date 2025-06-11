@@ -49,14 +49,16 @@ def analyze():
 
     final_score = round((scene_score + camera_score + flash_scor + color_scor + density_scor) / 5, 2)
 
+    
     return jsonify({
-        'scene_change': scene_score,
-        'camera_movement': camera_score,
-        'flashing_effects': flash_scor,
-        'color': color_scor,
-        'object_density': density_scor,
-        'final_score': final_score
+        'scene_change': float(scene_score),
+        'camera_movement': float(camera_score),
+        'flashing_effects': float(flash_scor),
+        'color': float(color_scor),
+        'object_density': float(density_scor),
+        'final_score': float(final_score)
     })
+
 
 
 if __name__ == '__main__':
