@@ -1,13 +1,13 @@
+# app.py
 from flask import Flask, request, jsonify
 import os
 import uuid
 
-# Import your analysis functions
-from scenechange import analyze_scene_changes
-from saturation_brightness import analyze_color_score
-from camera_movement import analyze_camera_movement
-from flashing_effects import analyze_flashing_effects
-from object_density import analyze_object_density
+from scene_change_analysis import analyze_scene_changes
+from color_score_analysis import analyze_color_score
+from camera_movement_analysis import analyze_camera_movement
+from flash_score_analysis import analyze_flashing_effects
+from density_score_analysis import analyze_object_density
 
 app = Flask(__name__)
 UPLOAD_FOLDER = "uploads"
@@ -30,7 +30,6 @@ def analyze_video():
         flash_score = analyze_flashing_effects(video_path)
         density_score = analyze_object_density(video_path)
 
-        # Weighted final score (can be customized)
         final_score = round((scene_score + color_score + motion_score + flash_score + density_score) / 5, 2)
 
         return jsonify({
