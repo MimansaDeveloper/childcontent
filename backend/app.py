@@ -1,51 +1,55 @@
-# app.py
 from flask import Flask, request, jsonify
 import os
-import uuid
+import tempfile
 
-from scene_change_analysis import analyze_scene_changes
-from color_score_analysis import analyze_color_score
-from camera_movement_analysis import analyze_camera_movement
-from flash_score_analysis import analyze_flashing_effects
-from density_score_analysis import analyze_object_density
+from scene_change import scene_change_score
+from color_score import color_score
+from camera_movement import camera_movement_score
+from flash_score import flash_score
+from density_score import density_score
 
 app = Flask(__name__)
-UPLOAD_FOLDER = "uploads"
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-@app.route("/analyze", methods=["POST"])
+@app.route('/analyze', methods=['POST'])
 def analyze_video():
-    if "video" not in request.files:
-        return jsonify({"error": "No video file provided"}), 400
+    if 'video' not in request.files:
+        return jsonify({'error': 'No video file provided'}), 400
 
-    video_file = request.files["video"]
-    filename = f"{uuid.uuid4()}.mp4"
-    video_path = os.path.join(UPLOAD_FOLDER, filename)
-    video_file.save(video_path)
+    video = request.files['video']
+
+    if video.filename == '':
+        return jsonify({'error': 'Empty filename'}), 400
 
     try:
-        scene_score = analyze_scene_changes(video_path)
-        color_score = analyze_color_score(video_path)
-        motion_score = analyze_camera_movement(video_path)
-        flash_score = analyze_flashing_effects(video_path)
-        density_score = analyze_object_density(video_path)
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as tmp:
+            video.save(tmp.name)
+            video_path = tmp.name
 
-        final_score = round((scene_score + color_score + motion_score + flash_score + density_score) / 5, 2)
+        # Run analysis
+        scene_score = scene_change_score(video_path)
+        color = color_score(video_path)
+        camera = camera_movement_score(video_path)
+        flash = flash_score(video_path)
+        density = density_score(video_path)
 
-        return jsonify({
-            "scene_change_score": scene_score,
-            "color_score": color_score,
-            "camera_movement_score": motion_score,
-            "flashing_effects_score": flash_score,
-            "object_density_score": density_score,
-            "final_score": final_score
-        })
+        scores = {
+            'scene_change_score': round(scene_score, 2),
+            'color_score': round(color, 2),
+            'camera_movement_score': round(camera, 2),
+            'flash_score': round(flash, 2),
+            'density_score': round(density, 2)
+        }
+
+        # Final weighted score (simple average for now)
+        final_score = round(sum(scores.values()) / len(scores), 2)
+        scores['final_score'] = final_score
+
+        os.remove(video_path)
+
+        return jsonify(scores)
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    finally:
-        if os.path.exists(video_path):
-            os.remove(video_path)
+        return jsonify({'error': str(e)}), 500
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8000)
+if __name__ == '__main__':
+    app.run(debug=True)
