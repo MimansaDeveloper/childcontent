@@ -40,6 +40,12 @@
 </head>
 <body>
   <h1>Upload a Video to Analyze Overstimulation</h1>
+  <p>
+    <em>
+      Analysis usually takes 5-10 min depending on video length. <br>
+      A higher final score (closer to 10) suggests the video may be more overstimulating for children under 5.
+    </em>
+  </p>
   <input type="file" id="videoInput" accept="video/*" />
   <button id="analyzeBtn">Analyze</button>
 
@@ -61,7 +67,7 @@
   </div>
 
   <script>
-    const backendURL = "https://childcontent.onrender.com"; // Replace with your actual backend URL
+    const backendURL = ""; // Replace with your actual backend URL
 
     const analyzeBtn = document.getElementById("analyzeBtn");
     const progressContainer = document.getElementById("progressContainer");

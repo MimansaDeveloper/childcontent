@@ -32,19 +32,19 @@ def analyze():
     print("Video uploaded and saved at:", filepath)
 
     print("Starting analysis...")
-    scene_score = scene_change_score(filepath)
+    scene_score = float(scene_change_score(filepath))
     print("Scene score:", scene_score)
 
-    camera_score = camera_movement_score(filepath)
+    camera_score = float(camera_movement_score(filepath))
     print("Camera movement score:", camera_score)
 
-    flash_scor = flash_score(filepath)
+    flash_scor = float(flash_score(filepath))
     print("Flash score:", flash_scor)
 
-    color_scor = color_score(filepath)
-    print("Color score:", color_score)
+    color_scor = float(color_score(filepath))
+    print("Color score:", color_scor)
 
-    density_scor = density_score(filepath)
+    density_scor = float(density_score(filepath))
     print("Density score:", density_scor)
 
     final_score = round((scene_score + camera_score + flash_scor + color_scor + density_scor) / 5, 2)
