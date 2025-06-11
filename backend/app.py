@@ -2,11 +2,11 @@ from flask import Flask, request, jsonify
 import os
 import tempfile
 
-from scene_change import scene_change_score
-from color_score import color_score
-from camera_movement import camera_movement_score
-from flash_score import flash_score
-from density_score import density_score
+from scene_change_analysis import scene_change_score
+from color_score_analysis import color_score
+from camera_movement_analysis import camera_movement_score
+from flash_score_analysis import flash_score
+from density_score_analysis import density_score
 
 app = Flask(__name__)
 
