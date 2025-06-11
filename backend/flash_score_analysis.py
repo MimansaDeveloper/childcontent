@@ -45,7 +45,3 @@ def flash_score(video_path):
     flash_score = 1 + 9 * (normalized ** 0.5)
 
     return flash_score
-
-
-flash_scor = flash_score(r"C:\Users\saani\Downloads\4.mp4")
-print("Flash score:", flash_scor)
