@@ -1,4 +1,8 @@
 numpy
-opencv-python
 tqdm
 flask
+opencv-python-headless
+numpy
+moviepy
+imageio
+imageio-ffmpeg
