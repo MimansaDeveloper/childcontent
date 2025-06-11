@@ -39,10 +39,10 @@ def analyze():
     print("Camera movement score:", camera_score)
 
     flash_scor = flash_score(filepath)
-    print("Flash score:", flash_score)
+    print("Flash score:", flash_scor)
 
     color_scor = color_score(filepath)
-    print("Color score:", color_score)
+    print("Color score:", color_scor)
 
     density_scor = density_score(filepath)
     print("Density score:", density_scor)
