@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Child Video Overstimulation Analyzer</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 2rem;
+      background-color: #f4f4f4;
+    }
+
+    #results {
+      margin-top: 20px;
+      padding: 1rem;
+      background-color: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    #progressContainer {
+      width: 100%;
+      background-color: #ddd;
+      border-radius: 5px;
+      margin-top: 20px;
+      display: none;
+    }
+
+    #progressBar {
+      width: 0%;
+      height: 20px;
+      background-color: #4caf50;
+      text-align: center;
+      line-height: 20px;
+      color: white;
+      border-radius: 5px;
+      transition: width 0.3s ease-in-out;
+    }
+  </style>
+</head>
+<body>
+  <h1>Upload a Video to Analyze Overstimulation</h1>
+  <input type="file" id="videoInput" accept="video/*" />
+  <button id="analyzeBtn">Analyze</button>
+
+  <!-- Progress Bar -->
+  <div id="progressContainer">
+    <div id="progressBar">Uploading...</div>
+  </div>
+
+  <!-- Results Section -->
+  <div id="results" style="display:none;">
+    <h3>Results</h3>
+    <p><strong>Scene Change Score:</strong> <span id="sceneScore"></span></p>
+    <p><strong>Camera Movement Score:</strong> <span id="cameraScore"></span></p>
+    <p><strong>Flashing Effects Score:</strong> <span id="flashingScore"></span></p>
+    <p><strong>Color Score:</strong> <span id="colorScore"></span></p>
+    <p><strong>Object Density Score:</strong> <span id="objectScore"></span></p>
+    <hr>
+    <p><strong>Final Score:</strong> <span id="finalScore"></span></p>
+  </div>
+
+  <script>
+    const backendURL = "https://childcontent.onrender.com"; // Replace with your actual backend URL
+
+    const analyzeBtn = document.getElementById("analyzeBtn");
+    const progressContainer = document.getElementById("progressContainer");
+    const progressBar = document.getElementById("progressBar");
+
+    analyzeBtn.onclick = async () => {
+      const fileInput = document.getElementById("videoInput");
+      if (!fileInput.files[0]) {
+        alert("Please upload a video file first.");
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("video", fileInput.files[0]);
+
+      // Show and reset progress bar
+      progressContainer.style.display = "block";
+      progressBar.style.width = "10%";
+      progressBar.textContent = "Analyzing...";
+
+      try {
+        const res = await fetch(`${backendURL}/analyze`, {
+          method: "POST",
+          body: formData
+        });
+
+        if (!res.ok) {
+          throw new Error("Server error");
+        }
+
+        // Simulate progress animation while waiting
+        let progress = 10;
+        const interval = setInterval(() => {
+          if (progress < 90) {
+            progress += Math.random() * 5;
+            progressBar.style.width = `${Math.min(progress, 90)}%`;
+          }
+        }, 300);
+
+        const data = await res.json();
+        clearInterval(interval);
+        progressBar.style.width = "100%";
+        progressBar.textContent = "Done!";
+
+        document.getElementById("results").style.display = "block";
+        document.getElementById("sceneScore").textContent = data.scene_change;
+        document.getElementById("cameraScore").textContent = data.camera_movement;
+        document.getElementById("flashingScore").textContent = data.flashing_effects;
+        document.getElementById("colorScore").textContent = data.color;
+        document.getElementById("objectScore").textContent = data.object_density;
+        document.getElementById("finalScore").textContent = data.final_score;
+
+      } catch (err) {
+        progressBar.style.backgroundColor = "red";
+        progressBar.textContent = "Error!";
+        alert("Something went wrong during analysis. Try again.");
+        console.error(err);
+      }
+    };
+  </script>
+</body>
+</html>
