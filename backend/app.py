@@ -42,7 +42,7 @@ def analyze():
     print("Flash score:", flash_scor)
 
     color_scor = color_score(filepath)
-    print("Color score:", color_scor)
+    print("Color score:", color_score)
 
     density_scor = density_score(filepath)
     print("Density score:", density_scor)
@@ -50,13 +50,14 @@ def analyze():
     final_score = round((scene_score + camera_score + flash_scor + color_scor + density_scor) / 5, 2)
 
     return jsonify({
-        'Scene Change Score': scene_score,
-        'Camera Movement Score': camera_score,
-        'Flash Score': flash_scor,
-        'Color Score': color_scor,
-        'Object Density Score': density_scor,
-        'Final Score': final_score
+        'scene_change': scene_score,
+        'camera_movement': camera_score,
+        'flashing_effects': flash_scor,
+        'color': color_scor,
+        'object_density': density_scor,
+        'final_score': final_score
     })
+
 
 if __name__ == '__main__':
     app.run(debug=True)
