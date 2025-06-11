@@ -1,55 +1,82 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, render_template, jsonify
 import os
-import tempfile
+from werkzeug.utils import secure_filename
+import uuid
 
-from scene_change_analysis import scene_change_score
-from color_score_analysis import color_score
-from camera_movement_analysis import camera_movement_score
-from flash_score_analysis import flash_score
-from density_score_analysis import density_score
+from color_score_analysis import analyze_color
+from camera_movement_analysis import analyze_motion
+from flash_score_analysis import analyze_flash_effects
+from density_score_analysis import analyze_object_density
+from scene_change_analysis import analyze_scene_change
+
+UPLOAD_FOLDER = 'uploads'
+ALLOWED_EXTENSIONS = {'mp4', 'avi', 'mov', 'mkv'}
 
 app = Flask(__name__)
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+# Ensure upload folder exists
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+@app.route('/')
+def index():
+    return render_template('index.html')
 
 @app.route('/analyze', methods=['POST'])
-def analyze_video():
+def analyze():
     if 'video' not in request.files:
-        return jsonify({'error': 'No video file provided'}), 400
+        return "No file part", 400
 
-    video = request.files['video']
+    file = request.files['video']
+    if file.filename == '':
+        return "No selected file", 400
 
-    if video.filename == '':
-        return jsonify({'error': 'Empty filename'}), 400
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        unique_filename = f"{uuid.uuid4().hex}_{filename}"
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
+        file.save(filepath)
 
-    try:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as tmp:
-            video.save(tmp.name)
-            video_path = tmp.name
+        print("\n📁 File uploaded successfully.")
+        print("🔍 Starting video analysis...")
 
-        # Run analysis
-        scene_score = scene_change_score(video_path)
-        color = color_score(video_path)
-        camera = camera_movement_score(video_path)
-        flash = flash_score(video_path)
-        density = density_score(video_path)
+        print("▶️ Step 1: Color Saturation and Brightness Analysis")
+        color_score = analyze_color(filepath)
 
-        scores = {
-            'scene_change_score': round(scene_score, 2),
-            'color_score': round(color, 2),
-            'camera_movement_score': round(camera, 2),
-            'flash_score': round(flash, 2),
-            'density_score': round(density, 2)
-        }
+        print("▶️ Step 2: Camera Motion Analysis")
+        motion_score = analyze_motion(filepath)
 
-        # Final weighted score (simple average for now)
-        final_score = round(sum(scores.values()) / len(scores), 2)
-        scores['final_score'] = final_score
+        print("▶️ Step 3: Flashing Effects Detection")
+        flash_score = analyze_flash_effects(filepath)
 
-        os.remove(video_path)
+        print("▶️ Step 4: On-screen Object/Character Density")
+        object_score = analyze_object_density(filepath)
 
-        return jsonify(scores)
+        print("▶️ Step 5: Scene Change Frequency")
+        scene_score = analyze_scene_change(filepath)
 
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        print("✅ All features analyzed.")
+
+        # Combine into final score
+        scores = [color_score, motion_score, flash_score, object_score, scene_score]
+        final_score = round(sum(scores) / len(scores), 2)
+
+        print(f"\n📊 Final Combined Score: {final_score}")
+
+        return jsonify({
+            "Color Score": color_score,
+            "Motion Score": motion_score,
+            "Flash Score": flash_score,
+            "Object Density Score": object_score,
+            "Scene Change Score": scene_score,
+            "Final Score": final_score
+        })
+    else:
+        return "Invalid file type", 400
+
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))  # Use PORT env var if set
-    app.run(host='0.0.0.0', port=port, debug=True)
+    app.run(debug=True)
