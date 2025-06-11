@@ -1,26 +1,19 @@
-from flask import Flask, request, render_template, jsonify
-import os
-from werkzeug.utils import secure_filename
-import uuid
+# app.py (Backend for Video Analysis)
 
-from color_score_analysis import color_score
-from camera_movement_analysis import camera_movement_score
-from flash_score_analysis import flash_score
-from density_score_analysis import density_score
+from flask import Flask, request, jsonify, render_template
+import os
+import uuid
 from scene_change_analysis import scene_change_score
+from flash_score_analysis import flash_score
+from camera_movement_analysis import camera_movement_score
+from color_score_analysis import color_score
+from density_score_analysis import density_score
 
 UPLOAD_FOLDER = 'uploads'
-ALLOWED_EXTENSIONS = {'mp4', 'avi', 'mov', 'mkv'}
-
-app = Flask(__name__)
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-
-# Ensure upload folder exists
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-def allowed_file(filename):
-    return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+app = Flask(__name__, template_folder='templates')
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 @app.route('/')
 def index():
@@ -29,54 +22,41 @@ def index():
 @app.route('/analyze', methods=['POST'])
 def analyze():
     if 'video' not in request.files:
-        return "No file part", 400
+        return jsonify({'error': 'No video file uploaded'}), 400
 
-    file = request.files['video']
-    if file.filename == '':
-        return "No selected file", 400
+    video = request.files['video']
+    filename = str(uuid.uuid4()) + os.path.splitext(video.filename)[1]
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    video.save(filepath)
 
-    if file and allowed_file(file.filename):
-        filename = secure_filename(file.filename)
-        unique_filename = f"{uuid.uuid4().hex}_{filename}"
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
-        file.save(filepath)
+    print("Video uploaded and saved at:", filepath)
 
-        print("\n📁 File uploaded successfully.")
-        print("🔍 Starting video analysis...")
+    print("Starting analysis...")
+    scene_score = scene_change_score(filepath)
+    print("Scene score:", scene_score)
 
-        print("▶️ Step 1: Color Saturation and Brightness Analysis")
-        color_scor = color_score(filepath)
+    camera_score = camera_movement_score(filepath)
+    print("Camera movement score:", camera_score)
 
-        print("▶️ Step 2: Camera Motion Analysis")
-        motion_score = camera_movement_score(filepath)
+    flash_scor = flash_score(filepath)
+    print("Flash score:", flash_score)
 
-        print("▶️ Step 3: Flashing Effects Detection")
-        flash_scor = flash_score(filepath)
+    color_scor = color_score(filepath)
+    print("Color score:", color_score)
 
-        print("▶️ Step 4: On-screen Object/Character Density")
-        object_score = density_score(filepath)
+    density_scor = density_score(filepath)
+    print("Density score:", density_scor)
 
-        print("▶️ Step 5: Scene Change Frequency")
-        scene_score = scene_change_score(filepath)
+    final_score = round((scene_score + camera_score + flash_scor + color_scor + density_scor) / 5, 2)
 
-        print("✅ All features analyzed.")
-
-        # Combine into final score
-        scores = [color_scor, motion_score, flash_scor, object_score, scene_score]
-        final_score = round(sum(scores) / len(scores), 2)
-
-        print(f"\n📊 Final Combined Score: {final_score}")
-
-        return jsonify({
-            "Color Score": color_scor,
-            "Motion Score": motion_score,
-            "Flash Score": flash_scor,
-            "Object Density Score": object_score,
-            "Scene Change Score": scene_score,
-            "Final Score": final_score
-        })
-    else:
-        return "Invalid file type", 400
+    return jsonify({
+        'Scene Change Score': scene_score,
+        'Camera Movement Score': camera_score,
+        'Flash Score': flash_scor,
+        'Color Score': color_scor,
+        'Object Density Score': density_scor,
+        'Final Score': final_score
+    })
 
 if __name__ == '__main__':
     app.run(debug=True)
