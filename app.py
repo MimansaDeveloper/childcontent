@@ -3,6 +3,9 @@
 from flask import Flask, request, jsonify, render_template
 import os
 import uuid
+from flask_cors import CORS
+CORS(app)
+
 from scene_change_analysis import scene_change_score
 from flash_score_analysis import flash_score
 from camera_movement_analysis import camera_movement_score
