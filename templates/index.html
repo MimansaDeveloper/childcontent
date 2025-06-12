@@ -36,25 +36,34 @@
       border-radius: 5px;
       transition: width 0.3s ease-in-out;
     }
+
+    #errorBox {
+      margin-top: 20px;
+      padding: 1rem;
+      color: white;
+      background-color: red;
+      border-radius: 5px;
+      display: none;
+    }
   </style>
 </head>
 <body>
   <h1>Upload a Video to Analyze Overstimulation</h1>
   <p>
     <em>
-      Analysis usually takes 5-10 min depending on video length. <br>
+      Analysis usually takes 5–10 minutes depending on video length. <br>
       A higher final score (closer to 10) suggests the video may be more overstimulating for children under 5.
     </em>
   </p>
   <input type="file" id="videoInput" accept="video/*" />
   <button id="analyzeBtn">Analyze</button>
 
-  <!-- Progress Bar -->
   <div id="progressContainer">
     <div id="progressBar">Uploading...</div>
   </div>
 
-  <!-- Results Section -->
+  <div id="errorBox" id="errorBoxText"></div>
+
   <div id="results" style="display:none;">
     <h3>Results</h3>
     <p><strong>Scene Change Score:</strong> <span id="sceneScore"></span></p>
@@ -67,38 +76,32 @@
   </div>
 
   <script>
-    const backendURL = "https://childcontent-kgfn.onrender.com"; // Replace with your actual backend URL
+    const backendURL = "https://childcontent-kgfn.onrender.com";
 
     const analyzeBtn = document.getElementById("analyzeBtn");
     const progressContainer = document.getElementById("progressContainer");
     const progressBar = document.getElementById("progressBar");
+    const errorBox = document.getElementById("errorBox");
 
     analyzeBtn.onclick = async () => {
       const fileInput = document.getElementById("videoInput");
-      if (!fileInput.files[0]) {
+      const file = fileInput.files[0];
+
+      if (!file) {
         alert("Please upload a video file first.");
         return;
       }
 
+      errorBox.style.display = "none";
       const formData = new FormData();
-      formData.append("video", fileInput.files[0]);
+      formData.append("video", file);
 
-      // Show and reset progress bar
+      // Show progress bar
       progressContainer.style.display = "block";
       progressBar.style.width = "10%";
       progressBar.textContent = "Analyzing...";
 
       try {
-        const res = await fetch(`${backendURL}/analyze`, {
-          method: "POST",
-          body: formData
-        });
-
-        if (!res.ok) {
-          throw new Error("Server error");
-        }
-
-        // Simulate progress animation while waiting
         let progress = 10;
         const interval = setInterval(() => {
           if (progress < 90) {
@@ -107,8 +110,24 @@
           }
         }, 300);
 
-        const data = await res.json();
+        const res = await fetch(`${backendURL}/analyze`, {
+          method: "POST",
+          body: formData
+        });
+
         clearInterval(interval);
+
+        if (!res.ok) {
+          const errText = await res.text();
+          console.error("Server returned error:", res.status, errText);
+          progressBar.style.backgroundColor = "red";
+          progressBar.textContent = "Error!";
+          errorBox.style.display = "block";
+          errorBox.innerText = `❌ Server Error (${res.status}): ${errText}`;
+          return;
+        }
+
+        const data = await res.json();
         progressBar.style.width = "100%";
         progressBar.textContent = "Done!";
 
@@ -121,10 +140,11 @@
         document.getElementById("finalScore").textContent = data.final_score;
 
       } catch (err) {
+        console.error("❌ JS error during upload/analyze:", err);
         progressBar.style.backgroundColor = "red";
         progressBar.textContent = "Error!";
-        alert("Something went wrong during analysis. Try again.");
-        console.error(err);
+        errorBox.style.display = "block";
+        errorBox.innerText = `❌ JS Error: ${err.message}`;
       }
     };
   </script>
