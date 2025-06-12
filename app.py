@@ -7,11 +7,11 @@ import uuid
 import traceback
 
 # --- Analysis modules (commented for now) ---
-# from scene_change_analysis import scene_change_score
-# from flash_score_analysis import flash_score
-# from camera_movement_analysis import camera_movement_score
-# from color_score_analysis import color_score
-# from density_score_analysis import density_score
+from scene_change_analysis import scene_change_score
+from flash_score_analysis import flash_score
+from camera_movement_analysis import camera_movement_score
+from color_score_analysis import color_score
+from density_score_analysis import density_score
 
 UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
