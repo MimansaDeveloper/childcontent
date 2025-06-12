@@ -30,17 +30,12 @@ def index():
 def analyze():
     try:
         print("🔔 POST /analyze triggered")
-        print("📦 Request content type:", request.content_type)
-        print("📁 Uploaded files:", request.files)
-
         if 'video' not in request.files:
             print("❌ No video part in request.files")
             return jsonify({'error': 'No video file uploaded'}), 400
 
         video = request.files['video']
         print("📄 Received file:", video.filename)
-
-        # Check file size
         video_bytes = video.read()
         print(f"📦 File size: {len(video_bytes)} bytes")
         video.seek(0)
@@ -48,44 +43,44 @@ def analyze():
         filename = str(uuid.uuid4()) + os.path.splitext(video.filename)[1]
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         video.save(filepath)
-
         print("✅ File saved to:", filepath)
 
-        # ------- Uncomment below once upload works fully --------
-        # print("🔍 Starting analysis...")
-        # scene_score = float(scene_change_score(filepath))
-        # print("📊 Scene score:", scene_score)
+        # --- Re-enable analysis ---
+        print("🧠 Running analysis...")
 
-        # camera_score = float(camera_movement_score(filepath))
-        # print("📊 Camera score:", camera_score)
+        scene_score = float(scene_change_score(filepath))
+        print("🎞 Scene score:", scene_score)
 
-        # flash_scor = float(flash_score(filepath))
-        # print("📊 Flash score:", flash_scor)
+        camera_score = float(camera_movement_score(filepath))
+        print("🎥 Camera movement score:", camera_score)
 
-        # color_scor = float(color_score(filepath))
-        # print("📊 Color score:", color_scor)
+        flash_scor = float(flash_score(filepath))
+        print("⚡ Flash score:", flash_scor)
 
-        # density_scor = float(density_score(filepath))
-        # print("📊 Density score:", density_scor)
+        color_scor = float(color_score(filepath))
+        print("🎨 Color score:", color_scor)
 
-        # final_score = round((scene_score + camera_score + flash_scor + color_scor + density_scor) / 5, 2)
+        density_scor = float(density_score(filepath))
+        print("📦 Density score:", density_scor)
 
-        # return jsonify({
-        #     'scene_change': scene_score,
-        #     'camera_movement': camera_score,
-        #     'flashing_effects': flash_scor,
-        #     'color': color_scor,
-        #     'object_density': density_scor,
-        #     'final_score': final_score
-        # })
+        final_score = round((scene_score + camera_score + flash_scor + color_scor + density_scor) / 5, 2)
+        print("✅ Final score:", final_score)
 
-        # ✅ Temporary test return
-        return jsonify({"status": "✅ File uploaded successfully", "filename": filename})
+        return jsonify({
+            'scene_change': scene_score,
+            'camera_movement': camera_score,
+            'flashing_effects': flash_scor,
+            'color': color_scor,
+            'object_density': density_scor,
+            'final_score': final_score
+        })
 
     except Exception as e:
+        import traceback
         print("❌ Exception occurred:", e)
         print(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
+
 
 
 if __name__ == '__main__':
