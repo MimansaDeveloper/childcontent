@@ -4,7 +4,7 @@ from flask import Flask, request, jsonify, render_template
 import os
 import uuid
 from flask_cors import CORS
-CORS(app)
+
 
 from scene_change_analysis import scene_change_score
 from flash_score_analysis import flash_score
@@ -17,6 +17,7 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 app = Flask(__name__, template_folder='templates')
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+CORS(app)
 
 @app.route('/')
 def index():
