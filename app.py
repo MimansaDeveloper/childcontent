@@ -1,12 +1,12 @@
-# app.py
-
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 import os
 import uuid
 import traceback
+import time
+from concurrent.futures import ThreadPoolExecutor
 
-# --- Analysis modules (commented for now) ---
+# --- Analysis Modules ---
 from scene_change_analysis import scene_change_score
 from flash_score_analysis import flash_score
 from camera_movement_analysis import camera_movement_score
@@ -18,8 +18,9 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 app = Flask(__name__, template_folder='templates')
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB max upload
+app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # Max 100MB file
 CORS(app)
+
 
 @app.route('/')
 def index():
@@ -29,42 +30,62 @@ def index():
 @app.route('/analyze', methods=['POST'])
 def analyze():
     try:
-        print("🔔 POST /analyze triggered")
+        print("\n🔔 Received POST /analyze")
+        start_total = time.time()
+
         if 'video' not in request.files:
-            print("❌ No video part in request.files")
+            print("❌ No video file found in request")
             return jsonify({'error': 'No video file uploaded'}), 400
 
         video = request.files['video']
-        print("📄 Received file:", video.filename)
+        print(f"📄 File name: {video.filename}")
         video_bytes = video.read()
-        print(f"📦 File size: {len(video_bytes)} bytes")
+        print(f"📦 File size: {round(len(video_bytes) / 1024 / 1024, 2)} MB")
         video.seek(0)
 
+        # Save file
         filename = str(uuid.uuid4()) + os.path.splitext(video.filename)[1]
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         video.save(filepath)
-        print("✅ File saved to:", filepath)
+        print(f"✅ Video saved to: {filepath}")
 
-        # --- Re-enable analysis ---
-        print("🧠 Running analysis...")
+        print("📋 Starting parallel analysis...\n")
+        timings = {}
 
-        scene_score = float(scene_change_score(filepath))
-        print("🎞 Scene score:", scene_score)
+        def timed(name, func):
+            print(f"⏳ [{name}] started...")
+            t0 = time.time()
+            result = func(filepath)
+            duration = round(time.time() - t0, 2)
+            timings[name] = duration
+            print(f"✅ [{name}] completed in {duration}s → Score: {result}")
+            return float(result)
 
-        camera_score = float(camera_movement_score(filepath))
-        print("🎥 Camera movement score:", camera_score)
+        # Run in parallel
+        with ThreadPoolExecutor() as executor:
+            futures = {
+                'scene': executor.submit(timed, 'Scene Change', scene_change_score),
+                'camera': executor.submit(timed, 'Camera Movement', camera_movement_score),
+                'flash': executor.submit(timed, 'Flashing Effects', flash_score),
+                'color': executor.submit(timed, 'Color Score', color_score),
+                'density': executor.submit(timed, 'Object Density', density_score)
+            }
 
-        flash_scor = float(flash_score(filepath))
-        print("⚡ Flash score:", flash_scor)
-
-        color_scor = float(color_score(filepath))
-        print("🎨 Color score:", color_scor)
-
-        density_scor = float(density_score(filepath))
-        print("📦 Density score:", density_scor)
+            scene_score = futures['scene'].result()
+            camera_score = futures['camera'].result()
+            flash_scor = futures['flash'].result()
+            color_scor = futures['color'].result()
+            density_scor = futures['density'].result()
 
         final_score = round((scene_score + camera_score + flash_scor + color_scor + density_scor) / 5, 2)
-        print("✅ Final score:", final_score)
+
+        total_time = round(time.time() - start_total, 2)
+
+        print("\n📊 Summary:")
+        for name, sec in timings.items():
+            print(f"• {name} took {sec} seconds")
+        print(f"🎯 Final Score: {final_score}")
+        print(f"🕒 Total Time: {total_time} seconds\n")
 
         return jsonify({
             'scene_change': scene_score,
@@ -76,13 +97,11 @@ def analyze():
         })
 
     except Exception as e:
-        import traceback
-        print("❌ Exception occurred:", e)
+        print("❌ Error occurred during analysis:")
         print(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
 
-
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))  # Render sets PORT env var
+    port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
