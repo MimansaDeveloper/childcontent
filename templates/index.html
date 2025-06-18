@@ -71,9 +71,13 @@
     <p><strong>Flashing Effects Score:</strong> <span id="flashingScore"></span></p>
     <p><strong>Color Score:</strong> <span id="colorScore"></span></p>
     <p><strong>Object Density Score:</strong> <span id="objectScore"></span></p>
+    <p><strong>Animation Transition Score:</strong> <span id="animationScore"></span></p>
+    <p><strong>Facial Expression Intensity Score:</strong> <span id="expressionScore"></span></p>
     <hr>
     <p><strong>Final Score:</strong> <span id="finalScore"></span></p>
   </div>
+
+<!-- const backendURL = ""; -->
 
   <script>
     const backendURL = "https://analyzer.mimansakids.com/";
@@ -137,6 +141,8 @@
         document.getElementById("flashingScore").textContent = data.flashing_effects;
         document.getElementById("colorScore").textContent = data.color;
         document.getElementById("objectScore").textContent = data.object_density;
+        document.getElementById("animationScore").textContent = data.animation;
+        document.getElementById("expressionScore").textContent = data.facial_expression_intensity;
         document.getElementById("finalScore").textContent = data.final_score;
 
       } catch (err) {

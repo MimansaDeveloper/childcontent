@@ -1,7 +1,7 @@
-To use the project, execute the app with the following command:
+To use the project, execute the script with the following command:
 
 ```
-python app.py
+python <file_name> --input <path_to_video_or_live_stream_url>
 ```
 
-then follow the site local site link 
+see arguments in individual files for more info
