@@ -15,6 +15,7 @@ from density_score_analysis import density_score
 from animation_analysis import animation_transition_score
 from expression_analysis import facial_expression_intensity_score
 from fantastical_content_analysis import fantastical_content_score
+from narrative_coherence_analysis import narrative_coherence_score
 
 UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -74,7 +75,9 @@ def analyze():
                 'density': executor.submit(timed, 'Object Density', density_score),
                 'animation': executor.submit(timed, 'Animation', animation_transition_score),
                 'expression': executor.submit(timed, 'Facial Expression Intensity', facial_expression_intensity_score),
-                'fancy': executor.submit(timed, 'Fantastical Content', fantastical_content_score)
+                'fancy': executor.submit(timed, 'Fantastical Content', fantastical_content_score),
+                'narrative': executor.submit(timed, 'Narrative Coherence', narrative_coherence_score)
+
             }
 
             scene_score = futures['scene'].result()
@@ -85,8 +88,11 @@ def analyze():
             animation_scor = futures['animation'].result()
             expression_scor = futures['expression'].result()
             fantastical_scor = futures['fancy'].result()
+            narrative_scor = futures['narrative'].result()
 
-        final_score = round((scene_score + camera_score + flash_scor + color_scor + density_scor + animation_scor + expression_scor + fantastical_scor) / 8, 2)
+
+        final_score = round((scene_score + camera_score + flash_scor + color_scor + density_scor + animation_scor + expression_scor + fantastical_scor + narrative_scor) / 9, 2)
+
 
         total_time = round(time.time() - start_total, 2)
 
@@ -105,6 +111,7 @@ def analyze():
             'animation': animation_scor,
             'facial_expression_intensity': expression_scor,
             'fantastical_content': fantastical_scor,
+            'narrative_coherence': narrative_scor,
             'final_score': final_score
         })
 

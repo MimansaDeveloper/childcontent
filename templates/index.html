@@ -74,6 +74,7 @@
     <p><strong>Animation Transition Score:</strong> <span id="animationScore"></span></p>
     <p><strong>Facial Expression Intensity Score:</strong> <span id="expressionScore"></span></p>
     <p><strong>Fantastical Content Score:</strong> <span id="fantasticalScore"></span></p>
+    <p><strong>Narrative Coherence Score:</strong> <span id="narrativeScore"></span></p>
     <hr>
     <p><strong>Final Score:</strong> <span id="finalScore"></span></p>
   </div>
@@ -145,6 +146,7 @@
         document.getElementById("animationScore").textContent = data.animation;
         document.getElementById("expressionScore").textContent = data.facial_expression_intensity;
         document.getElementById("fantasticalScore").textContent = data.fantastical_content;
+        document.getElementById("narrativeScore").textContent = data.narrative_coherence;
         document.getElementById("finalScore").textContent = data.final_score;
 
       } catch (err) {
