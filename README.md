@@ -35,3 +35,5 @@ ffmpeg -version
 ```
 
 You should now see the version info — which means it’s ready for use by your Python script.
+
+also add api key to speech_rate_analysis

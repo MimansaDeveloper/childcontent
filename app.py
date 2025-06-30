@@ -17,6 +17,8 @@ from expression_analysis import facial_expression_intensity_score
 from fantastical_content_analysis import fantastical_content_score
 from narrative_coherence_analysis import narrative_coherence_score
 from audio_overwhelm_analysis import audio_overwhelm_score
+from speech_rate_analysis import speech_rate_score
+
 
 
 UPLOAD_FOLDER = 'uploads'
@@ -79,7 +81,8 @@ def analyze():
                 'expression': executor.submit(timed, 'Facial Expression Intensity', facial_expression_intensity_score),
                 'fancy': executor.submit(timed, 'Fantastical Content', fantastical_content_score),
                 'narrative': executor.submit(timed, 'Narrative Coherence', narrative_coherence_score),
-                'audio': executor.submit(timed, 'Audio Overwhelm', audio_overwhelm_score)
+                'audio': executor.submit(timed, 'Audio Overwhelm', audio_overwhelm_score),
+                'speech_rate': executor.submit(timed, 'Speech Rate', speech_rate_score)
 
             }
 
@@ -93,12 +96,15 @@ def analyze():
             fantastical_scor = futures['fancy'].result()
             narrative_scor = futures['narrative'].result()
             audio_scor = futures['audio'].result()
+            speech_rate_scor = futures['speech_rate'].result()
 
 
 
         final_score = round((scene_score + camera_score + flash_scor + color_scor +
                      density_scor + animation_scor + expression_scor +
-                     fantastical_scor + narrative_scor + audio_scor) / 10, 2)
+                     fantastical_scor + narrative_scor + audio_scor +
+                     speech_rate_scor) / 11, 2)
+
 
 
 
@@ -121,6 +127,7 @@ def analyze():
             'fantastical_content': fantastical_scor,
             'narrative_coherence': narrative_scor,
             'audio_overwhelm': audio_scor,
+            'speech_rate': speech_rate_scor,
             'final_score': final_score
         })
 

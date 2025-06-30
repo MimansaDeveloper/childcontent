@@ -76,14 +76,15 @@
     <p><strong>Fantastical Content Score:</strong> <span id="fantasticalScore"></span></p>
     <p><strong>Narrative Coherence Score:</strong> <span id="narrativeScore"></span></p>
     <p><strong>Audio Overwhelm Score:</strong> <span id="audioScore"></span></p>
+    <p><strong>Speech Rate Score:</strong> <span id="speechRateScore"></span></p>
     <hr>
     <p><strong>Final Score:</strong> <span id="finalScore"></span></p>
   </div>
 
-<!-- const backendURL = "https://analyzer.mimansakids.com/"; -->
+<!-- const backendURL = ""; -->
 
   <script>
-    const backendURL = "";
+    const backendURL = "https://analyzer.mimansakids.com/";
 
     const analyzeBtn = document.getElementById("analyzeBtn");
     const progressContainer = document.getElementById("progressContainer");
@@ -149,7 +150,9 @@
         document.getElementById("fantasticalScore").textContent = data.fantastical_content;
         document.getElementById("narrativeScore").textContent = data.narrative_coherence;
         document.getElementById("audioScore").textContent = data.audio_overwhelm;
+        document.getElementById("speechRateScore").textContent = data.speech_rate;
         document.getElementById("finalScore").textContent = data.final_score;
+        
 
       } catch (err) {
         console.error("❌ JS error during upload/analyze:", err);
