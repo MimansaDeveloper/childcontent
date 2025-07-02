@@ -1,86 +1,89 @@
-import numpy as np
 import os
+import numpy as np
 import tempfile
-import subprocess
-from scipy.signal import bilinear, lfilter
-from scipy.io import wavfile
+import ffmpeg
+import soundfile as sf
+import pyloudnorm as pyln
+from ffmpeg._run import Error as FFmpegError  # Correct import
 
+def extract_audio_ffmpeg(input_path, output_path):
+    try:
+        (
+            ffmpeg
+            .input(input_path)
+            .output(output_path, ac=1, ar=16000, format='wav')
+            .overwrite_output()
+            .run(quiet=True)
+        )
+    except FFmpegError as e:
+        print("❌ FFmpeg error:", e.stderr.decode() if e.stderr else "No stderr.")
+        raise
 
-def a_weighting(fs):
-    f1 = 20.598997
-    f2 = 107.65265
-    f3 = 737.86223
-    f4 = 12194.217
-    A1000 = 1.9997
+def compute_chunk_loudness(audio_data, sample_rate, chunk_size):
+    """
+    Analyze audio in chunks of chunk_size seconds and compute loudness values
+    """
+    meter = pyln.Meter(sample_rate)
+    chunk_samples = int(chunk_size * sample_rate)
+    loudness_values = []
 
-    nums = [(2 * np.pi * f4)**2 * (10 ** (A1000 / 20)), 0, 0, 0, 0]
-    dens = np.convolve([1, 4 * np.pi * f4, (2 * np.pi * f4)**2],
-                       [1, 4 * np.pi * f1, (2 * np.pi * f1)**2])
-    dens = np.convolve(np.convolve(dens, [1, 2 * np.pi * f3]), [1, 2 * np.pi * f2])
+    for i in range(0, len(audio_data), chunk_samples):
+        chunk = audio_data[i:i + chunk_samples]
+        if len(chunk) < chunk_samples:
+            continue
+        try:
+            loudness = meter.integrated_loudness(chunk)
+            if np.isfinite(loudness):
+                loudness_values.append(loudness)
+        except Exception as e:
+            print(f"⚠️ Skipping chunk {i // chunk_samples}: {e}")
+            continue
 
-    b, a = bilinear(nums, dens, fs)
-    return b, a
-
-
-def compute_a_weighted_rms(signal, fs=16000):
-    b, a = a_weighting(fs)
-    weighted = lfilter(b, a, signal)
-    return float(np.sqrt(np.mean(weighted ** 2)))
-
-
-def rms_to_db(rms):
-    return 20 * np.log10(rms + 1e-10)
-
+    return np.array(loudness_values)
 
 def audio_overwhelm_score(video_path, chunk_duration=1.0):
     with tempfile.TemporaryDirectory() as tmpdir:
         audio_path = os.path.join(tmpdir, "audio.wav")
 
-        # Extract audio using ffmpeg
-        command = [
-            "ffmpeg", "-i", video_path,
-            "-ac", "1", "-ar", "16000",  # Mono, 16kHz
-            "-loglevel", "quiet",
-            audio_path
-        ]
-        subprocess.run(command, check=True)
+        # Extract audio using ffmpeg-python
+        extract_audio_ffmpeg(video_path, audio_path)
 
-        fs, data = wavfile.read(audio_path)
+        # Load audio
+        data, rate = sf.read(audio_path)
         if data.ndim > 1:
-            data = data.mean(axis=1)
+            data = np.mean(data, axis=1)
 
-        # Normalize
-        data = data / np.max(np.abs(data))
+        if len(data) == 0 or np.all(data == 0):
+            print("⚠️ Audio data is empty or silent.")
+            return 1.0
 
-        chunk_size = int(fs * chunk_duration)
-        loudness_values = []
+        # Compute overall LUFS
+        meter = pyln.Meter(rate)
+        try:
+            lufs = meter.integrated_loudness(data)
+        except Exception as e:
+            print("⚠️ Could not compute LUFS:", e)
+            return 1.0
 
-        for i in range(0, len(data), chunk_size):
-            chunk = data[i:i + chunk_size]
-            if len(chunk) < chunk_size:
-                break
-            rms = compute_a_weighted_rms(chunk, fs)
-            db = rms_to_db(rms)
-            loudness_values.append(db)
+        # Analyze loudness over chunks
+        loudness_chunks = compute_chunk_loudness(data, rate, chunk_duration)
+        loudness_chunks = loudness_chunks[np.isfinite(loudness_chunks)]  # Remove NaN, inf
 
-        if len(loudness_values) < 2:
-            print("⚠️ Not enough audio chunks for analysis.")
-            return 1
+        if len(loudness_chunks) < 2:
+            print("⚠️ Not enough valid audio chunks for analysis.")
+            return 1.0
 
-        loudness_values = np.array(loudness_values)
-        avg_loudness = np.mean(loudness_values)
-        std_loudness = np.std(loudness_values)
-        sudden_peaks = np.sum(np.diff(loudness_values) > 8)  # abrupt jumps
-        high_volume_bursts = np.sum(loudness_values > -15)  # many loud moments
+        std_loudness = np.std(loudness_chunks)
+        peaks = np.sum(np.abs(np.diff(loudness_chunks)) > 5)
+        high_volume_bursts = np.sum(loudness_chunks > -15)
 
-        # Normalized features (0 to 1)
-        loud_penalty = min(1.0, (avg_loudness + 25) / 20)  # -25 dB to -5 dB
-        variability_penalty = min(1.0, std_loudness / 10)
-        peak_penalty = min(1.0, sudden_peaks / 10)
-        burst_penalty = min(1.0, high_volume_bursts / len(loudness_values))
+        # Scoring (normalize to 0–1)
+        base_penalty = min(1.0, (-lufs - 10) / 20)  # -30 to -10 LUFS
+        variation_penalty = min(1.0, std_loudness / 6)
+        peak_penalty = min(1.0, peaks / 10)
+        burst_penalty = min(1.0, high_volume_bursts / len(loudness_chunks))
 
-        overwhelm_score = (loud_penalty + variability_penalty + peak_penalty + burst_penalty) / 4
-        final_score = 1 + 9 * overwhelm_score
+        final_penalty = (base_penalty + variation_penalty + peak_penalty + burst_penalty) / 4
+        final_score = 1 + 9 * final_penalty
 
         return final_score
-
