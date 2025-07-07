@@ -5,8 +5,6 @@ import uuid
 import traceback
 import time
 from concurrent.futures import ThreadPoolExecutor
-import requests
-import yt_dlp
 
 # --- Analysis Modules ---
 from scene_change_analysis import scene_change_score
@@ -21,6 +19,8 @@ from narrative_coherence_analysis import narrative_coherence_score
 from audio_overwhelm_analysis import audio_overwhelm_score
 from speech_rate_analysis import speech_rate_score
 
+
+
 UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
@@ -28,6 +28,7 @@ app = Flask(__name__, template_folder='templates')
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # Max 100MB file
 CORS(app)
+
 
 @app.route('/')
 def index():
@@ -40,61 +41,21 @@ def analyze():
         print("\n🔔 Received POST /analyze")
         start_total = time.time()
 
-        video = None
-        filepath = None
+        if 'video' not in request.files:
+            print("❌ No video file found in request")
+            return jsonify({'error': 'No video file uploaded'}), 400
 
-        if 'video' in request.files:
-            video = request.files['video']
-            print(f"📄 File name: {video.filename}")
-            video_bytes = video.read()
-            print(f"📦 File size: {round(len(video_bytes) / 1024 / 1024, 2)} MB")
-            video.seek(0)
+        video = request.files['video']
+        print(f"📄 File name: {video.filename}")
+        video_bytes = video.read()
+        print(f"📦 File size: {round(len(video_bytes) / 1024 / 1024, 2)} MB")
+        video.seek(0)
 
-            filename = str(uuid.uuid4()) + os.path.splitext(video.filename)[1]
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            video.save(filepath)
-            print(f"✅ Video uploaded and saved to: {filepath}")
-
-        elif 'video_url' in request.form:
-            video_url = request.form['video_url'].strip()
-            if not video_url.lower().startswith('http'):
-                return jsonify({'error': 'Invalid URL'}), 400
-
-            print(f"🌐 Downloading from URL: {video_url}")
-            ext = '.mp4'
-            filename = str(uuid.uuid4()) + ext
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-
-            if 'youtube.com' in video_url or 'youtu.be' in video_url:
-                print("📽️ Using yt_dlp for YouTube download...")
-                try:
-                    ydl_opts = {
-                        'format': 'best[ext=mp4]',
-                        'outtmpl': filepath,
-                        'quiet': True,
-                        'noplaylist': True
-                    }
-                    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                        ydl.download([video_url])
-                    print(f"✅ YouTube video saved to: {filepath}")
-                except Exception as e:
-                    print("❌ yt_dlp error:", str(e))
-                    return jsonify({'error': 'Failed to download YouTube video'}), 500
-            else:
-                print("🔽 Downloading non-YouTube video with requests...")
-                try:
-                    r = requests.get(video_url, stream=True, timeout=30)
-                    r.raise_for_status()
-                    with open(filepath, 'wb') as f:
-                        for chunk in r.iter_content(chunk_size=8192):
-                            f.write(chunk)
-                    print(f"✅ Video downloaded and saved to: {filepath}")
-                except Exception as e:
-                    print("❌ Error downloading video:", str(e))
-                    return jsonify({'error': 'Failed to download video from URL'}), 500
-        else:
-            print("❌ No video input found")
-            return jsonify({'error': 'No video or video_url provided'}), 400
+        # Save file
+        filename = str(uuid.uuid4()) + os.path.splitext(video.filename)[1]
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        video.save(filepath)
+        print(f"✅ Video saved to: {filepath}")
 
         print("📋 Starting parallel analysis...\n")
         timings = {}
@@ -108,6 +69,7 @@ def analyze():
             print(f"✅ [{name}] completed in {duration}s → Score: {result}")
             return float(result)
 
+        # Run in parallel
         with ThreadPoolExecutor() as executor:
             futures = {
                 'scene': executor.submit(timed, 'Scene Change', scene_change_score),
@@ -121,11 +83,31 @@ def analyze():
                 'narrative': executor.submit(timed, 'Narrative Coherence', narrative_coherence_score),
                 'audio': executor.submit(timed, 'Audio Overwhelm', audio_overwhelm_score),
                 'speech_rate': executor.submit(timed, 'Speech Rate', speech_rate_score)
+
             }
 
-            scores = {k: future.result() for k, future in futures.items()}
+            scene_score = futures['scene'].result()
+            camera_score = futures['camera'].result()
+            flash_scor = futures['flash'].result()
+            color_scor = futures['color'].result()
+            density_scor = futures['density'].result()
+            animation_scor = futures['animation'].result()
+            expression_scor = futures['expression'].result()
+            fantastical_scor = futures['fancy'].result()
+            narrative_scor = futures['narrative'].result()
+            audio_scor = futures['audio'].result()
+            speech_rate_scor = futures['speech_rate'].result()
 
-        final_score = round(sum(scores.values()) / len(scores), 2)
+
+
+        final_score = round((scene_score + camera_score + flash_scor + color_scor +
+                     density_scor + animation_scor + expression_scor +
+                     fantastical_scor + narrative_scor + audio_scor +
+                     speech_rate_scor) / 11, 2)
+
+
+
+
         total_time = round(time.time() - start_total, 2)
 
         print("\n📊 Summary:")
@@ -135,17 +117,17 @@ def analyze():
         print(f"🕒 Total Time: {total_time} seconds\n")
 
         return jsonify({
-            'scene_change': scores['scene'],
-            'camera_movement': scores['camera'],
-            'flashing_effects': scores['flash'],
-            'color': scores['color'],
-            'object_density': scores['density'],
-            'animation': scores['animation'],
-            'facial_expression_intensity': scores['expression'],
-            'fantastical_content': scores['fancy'],
-            'narrative_coherence': scores['narrative'],
-            'audio_overwhelm': scores['audio'],
-            'speech_rate': scores['speech_rate'],
+            'scene_change': scene_score,
+            'camera_movement': camera_score,
+            'flashing_effects': flash_scor,
+            'color': color_scor,
+            'object_density': density_scor,
+            'animation': animation_scor,
+            'facial_expression_intensity': expression_scor,
+            'fantastical_content': fantastical_scor,
+            'narrative_coherence': narrative_scor,
+            'audio_overwhelm': audio_scor,
+            'speech_rate': speech_rate_scor,
             'final_score': final_score
         })
 

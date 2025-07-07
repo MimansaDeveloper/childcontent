@@ -9,21 +9,23 @@
       padding: 2rem;
       background-color: #f4f4f4;
     }
-    #results, #errorBox, #progressContainer {
+
+    #results {
       margin-top: 20px;
-    }
-    #results, #errorBox {
       padding: 1rem;
       background-color: #fff;
       border-radius: 8px;
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
+
     #progressContainer {
       width: 100%;
       background-color: #ddd;
       border-radius: 5px;
+      margin-top: 20px;
       display: none;
     }
+
     #progressBar {
       width: 0%;
       height: 20px;
@@ -34,35 +36,33 @@
       border-radius: 5px;
       transition: width 0.3s ease-in-out;
     }
+
     #errorBox {
-      background-color: red;
+      margin-top: 20px;
+      padding: 1rem;
       color: white;
+      background-color: red;
+      border-radius: 5px;
       display: none;
     }
   </style>
 </head>
 <body>
-  <h1>Analyze Overstimulation in Kids’ Videos</h1>
+  <h1>Upload a Video to Analyze Overstimulation</h1>
   <p>
     <em>
-      Upload a video file or paste a video URL below.<br>
-      Higher scores (closer to 10) indicate more overstimulating content for children under 5.
+      Analysis usually takes 5–10 minutes depending on video length. <br>
+      A higher final score (closer to 10) suggests the video may be more overstimulating for children under 5.
     </em>
   </p>
-
-  <label for="videoInput">Upload video:</label><br>
-  <input type="file" id="videoInput" accept="video/*"><br><br>
-
-  <label for="videoURL">Or enter video URL:</label><br>
-  <input type="text" id="videoURL" placeholder="https://example.com/video.mp4" style="width:100%;"><br><br>
-
+  <input type="file" id="videoInput" accept="video/*" />
   <button id="analyzeBtn">Analyze</button>
 
   <div id="progressContainer">
     <div id="progressBar">Uploading...</div>
   </div>
 
-  <div id="errorBox"></div>
+  <div id="errorBox" id="errorBoxText"></div>
 
   <div id="results" style="display:none;">
     <h3>Results</h3>
@@ -81,10 +81,10 @@
     <p><strong>Final Score:</strong> <span id="finalScore"></span></p>
   </div>
 
-  <!-- const backendURL = ""; -->
+<!-- const backendURL = ""; -->
 
   <script>
-    const backendURL = "https://analyzer.mimansakids.com";
+    const backendURL = "https://analyzer.mimansakids.com/";
 
     const analyzeBtn = document.getElementById("analyzeBtn");
     const progressContainer = document.getElementById("progressContainer");
@@ -93,26 +93,21 @@
 
     analyzeBtn.onclick = async () => {
       const fileInput = document.getElementById("videoInput");
-      const urlInput = document.getElementById("videoURL");
       const file = fileInput.files[0];
-      const videoURL = urlInput.value.trim();
 
-      if (!file && !videoURL) {
-        alert("Please upload a video file or enter a video URL.");
+      if (!file) {
+        alert("Please upload a video file first.");
         return;
       }
 
+      errorBox.style.display = "none";
       const formData = new FormData();
-      if (file) {
-        formData.append("video", file);
-      } else {
-        formData.append("video_url", videoURL);
-      }
+      formData.append("video", file);
 
+      // Show progress bar
       progressContainer.style.display = "block";
       progressBar.style.width = "10%";
       progressBar.textContent = "Analyzing...";
-      errorBox.style.display = "none";
 
       try {
         let progress = 10;
@@ -132,17 +127,18 @@
 
         if (!res.ok) {
           const errText = await res.text();
-          console.error("Server error:", errText);
+          console.error("Server returned error:", res.status, errText);
           progressBar.style.backgroundColor = "red";
           progressBar.textContent = "Error!";
           errorBox.style.display = "block";
-          errorBox.textContent = `❌ Server Error (${res.status}): ${errText}`;
+          errorBox.innerText = `❌ Server Error (${res.status}): ${errText}`;
           return;
         }
 
         const data = await res.json();
         progressBar.style.width = "100%";
         progressBar.textContent = "Done!";
+
         document.getElementById("results").style.display = "block";
         document.getElementById("sceneScore").textContent = data.scene_change;
         document.getElementById("cameraScore").textContent = data.camera_movement;
@@ -156,12 +152,14 @@
         document.getElementById("audioScore").textContent = data.audio_overwhelm;
         document.getElementById("speechRateScore").textContent = data.speech_rate;
         document.getElementById("finalScore").textContent = data.final_score;
+        
+
       } catch (err) {
-        console.error("❌ JS error:", err);
+        console.error("❌ JS error during upload/analyze:", err);
         progressBar.style.backgroundColor = "red";
         progressBar.textContent = "Error!";
         errorBox.style.display = "block";
-        errorBox.textContent = `❌ JS Error: ${err.message}`;
+        errorBox.innerText = `❌ JS Error: ${err.message}`;
       }
     };
   </script>
