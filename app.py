@@ -7,6 +7,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 import requests
 import yt_dlp
+import csv
 
 # --- Analysis Modules ---
 from scene_change_analysis import scene_change_score
@@ -33,7 +34,6 @@ CORS(app)
 def index():
     return render_template('index.html')
 
-
 @app.route('/analyze', methods=['POST'])
 def analyze():
     try:
@@ -42,6 +42,7 @@ def analyze():
 
         video = None
         filepath = None
+        filename = None
 
         if 'video' in request.files:
             video = request.files['video']
@@ -135,6 +136,7 @@ def analyze():
         print(f"🕒 Total Time: {total_time} seconds\n")
 
         return jsonify({
+            'filename': filename,
             'scene_change': scores['scene'],
             'camera_movement': scores['camera'],
             'flashing_effects': scores['flash'],
@@ -154,6 +156,24 @@ def analyze():
         print(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
+@app.route('/feedback', methods=['POST'])
+def feedback():
+    try:
+        data = request.json
+        video_name = data.get('video_name', 'unknown')
+        rating = data.get('rating', '')
+        comments = data.get('comments', '')
+
+        with open("feedback.csv", mode='a', newline='', encoding='utf-8') as file:
+            writer = csv.writer(file)
+            writer.writerow([video_name, rating, comments])
+
+        print(f"✅ Feedback recorded for {video_name}")
+        return jsonify({"status": "success"})
+
+    except Exception as e:
+        print("❌ Error saving feedback:", str(e))
+        return jsonify({"error": "Failed to save feedback"}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))

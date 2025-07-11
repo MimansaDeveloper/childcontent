@@ -46,7 +46,8 @@
   <p>
     <em>
       Upload a video file or paste a video URL below.<br>
-      Higher scores (closer to 10) indicate more overstimulating content for children under 5.
+      Higher scores (closer to 10) indicate more overstimulating content for children under 5.<br>
+      Reload before uploading another video.
     </em>
   </p>
 
@@ -79,10 +80,23 @@
     <p><strong>Speech Rate Score:</strong> <span id="speechRateScore"></span></p>
     <hr>
     <p><strong>Final Score:</strong> <span id="finalScore"></span></p>
+
+    <h3>Feedback</h3>
+    <label for="rating">Was this analysis helpful?</label><br>
+    <select id="rating" style="font-size: 1.2em; padding: 5px;">
+      <option value="">Select</option>
+      <option value="👍">👍 Yes</option>
+      <option value="👎">👎 No</option>
+    </select><br><br>
+
+    <label for="comments">Any suggestions or comments?</label><br>
+    <textarea id="comments" rows="4" style="width:100%;" placeholder="Your thoughts..."></textarea><br><br>
+
+    <button id="submitFeedbackBtn">Submit Feedback</button>
+    <p id="feedbackStatus" style="color: green;"></p>
   </div>
 
   <!-- const backendURL = ""; -->
-
   <script>
     const backendURL = "https://analyzer.mimansakids.com";
 
@@ -141,6 +155,8 @@
         }
 
         const data = await res.json();
+        window.lastAnalyzedVideo = data.filename || "unknown";
+
         progressBar.style.width = "100%";
         progressBar.textContent = "Done!";
         document.getElementById("results").style.display = "block";
@@ -162,6 +178,37 @@
         progressBar.textContent = "Error!";
         errorBox.style.display = "block";
         errorBox.textContent = `❌ JS Error: ${err.message}`;
+      }
+    };
+
+    const submitFeedbackBtn = document.getElementById("submitFeedbackBtn");
+    submitFeedbackBtn.onclick = async () => {
+      const rating = document.getElementById("rating").value;
+      const comments = document.getElementById("comments").value;
+      const video_name = window.lastAnalyzedVideo || "unknown";
+
+      if (!rating) {
+        alert("Please select 👍 or 👎 for your feedback.");
+        return;
+      }
+
+      try {
+        const res = await fetch(`${backendURL}/feedback`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ video_name, rating, comments })
+        });
+
+        if (res.ok) {
+          document.getElementById("feedbackStatus").textContent = "✅ Thanks for your feedback!";
+        } else {
+          document.getElementById("feedbackStatus").style.color = "red";
+          document.getElementById("feedbackStatus").textContent = "❌ Failed to send feedback.";
+        }
+      } catch (err) {
+        console.error("❌ Feedback error:", err);
+        document.getElementById("feedbackStatus").style.color = "red";
+        document.getElementById("feedbackStatus").textContent = "❌ Error submitting feedback.";
       }
     };
   </script>
